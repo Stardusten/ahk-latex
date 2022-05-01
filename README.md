@@ -1,2 +1,2 @@
 # ahk-latex
-A script that make it swift to enter math formulas with latex.
+A script that make it swift to write math formulas with latex.
