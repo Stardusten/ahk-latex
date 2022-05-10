@@ -19,25 +19,70 @@
 ; ::cc::\chi 
 ; ::uu::\upsilon
 
+EmacsSelect()
+{
+    Send("{Alt Down}{Shift Down}{b 10}{Shift Up}{Alt Up}")
+}
+
+NormalSelect()
+{
+    Send("{Ctrl Down}{Shift Down}{Left 10}{Shift Up}{Ctrl Up}")
+}
+
+EmacsCopy()
+{
+    Send("^w")
+}
+
+NormalCopy()
+{
+    Send("^c")
+}
+
+EmacsPaste()
+{
+    Send("^y")
+}
+
+NormalPaste()
+{
+    Send("^v")
+}
+
 RAlt::
 {
-    ;; selects texts from current cursor to the beginning of current line
-    ; Send("{Ctrl Down}{Shift Down}{Home}{Shift Up}{Ctrl Up}")
-    Send("{Ctrl Down}{Shift Down}{Left 10}{Shift Up}{Ctrl Up}")
+    title := WinGetTitle("A")
+    isEmacs := (InStr(title, "Emacs") != 0)
+
+    select := ""
+    copy := ""
+    paste := ""
+    ;; for Emacs, use 
+    if (isEmacs) {
+        select := EmacsSelect
+        copy := EmacsCopy
+        paste := EmacsPaste
+    } else {
+        select := NormalSelect
+        copy := NormalCopy
+        paste := NormalPaste
+    }
+
+    select()
 
     ;; read them to clipboard
     A_Clipboard := ""
     Sleep(50)
-    Send("^c")
+    copy()
     if !ClipWait(0.1) {
         return
     }
     input := A_Clipboard
+    Sleep(50)
 
-    
     m := ""
 
-    RegExMatch(input, "i)(?:(?<!\\)\$|\s)*(\S+) ((?!\$)[a-z]+)((?:(?<!\\)\$|\s)*)", &m)
+    RegExMatch(input, "i)(?:(?<!\\)\$|\s)*(\S+) ((?!\$)[a-z]+)((?:(?<!\\)\$|\s)*)$", &m)
     if (m != "") {
         rest_len := StrLen(input) - StrLen(m[1]) - StrLen(m[2]) - StrLen(m[3]) - 1
         result := SubStr(input, 1, rest_len)
@@ -50,7 +95,7 @@ RAlt::
 
         if  (decorators1.Has(m[2])) {
             A_Clipboard := result . "\" . m[2] . "{" . m[1] . "} "
-            Send "^v"
+            paste()
             return
         }
 
@@ -63,13 +108,13 @@ RAlt::
         x := decorators2.Get(m[2], "")
         if  (x != "") {
             A_Clipboard := result . m[1] . "^{" . x . "} "
-            Send "^v"
+            paste()
             return
         }
     }
 
     ;; match greek letter command
-    RegExMatch(input, "i)(?:(?<!\\)\$|\s)*(\\[a-z]+)((?:(?<!\\)\$|\s)*)", &m)
+    RegExMatch(input, "i)(?:(?<!\\)\$|\s)*(\\[a-z]+)((?:(?<!\\)\$|\s)*)$", &m)
     if (m != "") {
 
         rest_len := StrLen(input) - StrLen(m[1]) - StrLen(m[2])
@@ -108,7 +153,7 @@ RAlt::
         expand := greeks.Get(m[1], "")
         if (expand != "") {
             A_Clipboard := result . expand . " "
-            Send "^v"
+            paste()
             return
         }
 
@@ -130,7 +175,7 @@ RAlt::
         expand := abbrs.Get(m[1], "")
         if (expand != "") {
             A_Clipboard := result . expand . " "
-            Send "^v"
+            paste()
             return
         }
     }
@@ -155,20 +200,20 @@ RAlt::
             next_style := "mathfrak"
         else if (style == "mathfrak") { ;; back no no style
             A_Clipboard := result . m[2]
-            Send("^v")
+            paste()
             return
         }
         else return ;; unknown style or command, ignored
         
         ;; switch to next style
         A_Clipboard := result . "\" . next_style . "{" . m[2] . "}"
-        Send "^v"
+        paste()
         return
     }
     
     
     ;; match last word
-    RegExMatch(input, "i)(?: |\$)((?:(?!\$)\S)+)((?:\s|\$)*)", &m)
+    RegExMatch(input, "i)(?: |\$)?((?:(?!\$)\S)+)((?:\s|\$)*)$", &m)
 
     if (m != "") {
 
@@ -203,7 +248,7 @@ RAlt::
         expand := greeks.Get(last_word, "")
         if (expand != "") {
             A_Clipboard := result . expand . " "
-            Send "^v"
+            paste()
             return
         }
 
@@ -221,14 +266,14 @@ RAlt::
         expand := abbrs.Get(last_word, "")
         if (expand != "") {
             A_Clipboard := result . expand . " "
-            Send "^v"
+            paste()
             return
         }
 
         ;; expand ( to \(left \right)
         if (last_word == "(") {
             A_Clipboard := result . "\left( " . " \right)"
-            Send("^v")
+            paste()
             Send("{Left 8}")
             return
         }
@@ -236,7 +281,7 @@ RAlt::
         ;; expand / to \frac{}{•}
         if (last_word == "/") {
             A_Clipboard := result . "\frac{}{•}"
-            Send("^v")
+            paste()
             Send("{Left 4}")
             return
         }
@@ -253,7 +298,7 @@ RAlt::
             result .= "`n\end{cases}`n"
 
             A_Clipboard := result
-            Send("^v")
+            paste()
 
             first_dot_pos := InStr(result, "•")
             Send("{Left " . StrLen(result) - first_dot_pos . "}")
@@ -279,7 +324,7 @@ RAlt::
             result .= "`n\end{" . matrix_type . "}`n"
 
             A_Clipboard := result
-            Send("^v")
+            paste()
 
             first_dot_pos := InStr(result, "•")
             Send("{Left " . StrLen(result) - first_dot_pos . "}")
@@ -290,7 +335,7 @@ RAlt::
 
         ;; add bold style
         A_Clipboard := result . "\bm{" . last_word . "}"
-        Send "^v"
+        paste()
         return
     }
 }
